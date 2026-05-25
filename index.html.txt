@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NÓESIS · Reconocimiento de filósofos contemporáneos</title>
+<meta name="description" content="Plataforma de visión computacional que identifica filósofos de la época contemporánea con inteligencia artificial." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- IA: Teachable Machine + TensorFlow.js -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+<style>
+:root{
+  --bg:#0c0e15;
+  --bg-2:#10131d;
+  --card:#161a26;
+  --card-2:#1c2131;
+  --ink:#ece7d8;
+  --ink-2:#a7a496;
+  --ink-3:#6b6c79;
+  --gold:#c9a24b;
+  --gold-2:#e6cd84;
+  --oxblood:#a23c34;
+  --teal:#3a7d76;
+  --line:rgba(201,162,75,.16);
+  --line-2:rgba(236,231,216,.09);
+
+  --serif:"Cormorant Garamond", Georgia, serif;
+  --sans:"Hanken Grotesk", system-ui, sans-serif;
+  --mono:"Space Mono", ui-monospace, monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:74px}
+body{
+  font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.65;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative;
+}
+/* atmósfera */
+body::after{
+  content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 50% at 75% 0%,rgba(201,162,75,.10),transparent 60%),
+    radial-gradient(ellipse 60% 50% at 10% 90%,rgba(58,125,118,.10),transparent 60%),
+    var(--bg);
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--gold);color:#0c0e15}
+
+.wrap{width:min(1180px,92vw);margin:0 auto}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.24em;font-size:.7rem;color:var(--gold);font-weight:700}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.04;letter-spacing:.005em}
+
+.ornament{display:flex;align-items:center;justify-content:center;gap:1.1rem;color:var(--gold);margin:0 auto}
+.ornament::before,.ornament::after{content:"";height:1px;width:70px;background:linear-gradient(90deg,transparent,var(--gold))}
+.ornament::after{background:linear-gradient(90deg,var(--gold),transparent)}
+.ornament span{font-size:.9rem;letter-spacing:.3em}
+
+/* ===== NAV ===== */
+header.nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(12,14,21,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);transition:transform .35s ease}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--serif);font-weight:700;font-size:1.7rem;letter-spacing:.04em}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 14px var(--gold)}
+.brand small{font-family:var(--mono);font-size:.55rem;letter-spacing:.24em;color:var(--ink-3);font-weight:400;display:block;margin-top:-2px}
+nav ul{display:flex;gap:2rem;list-style:none;align-items:center}
+nav a{font-size:.85rem;font-weight:600;letter-spacing:.02em;position:relative;padding:.3rem 0;color:var(--ink-2)}
+nav a::after{content:"";position:absolute;left:0;bottom:-2px;height:1.5px;width:0;background:var(--gold);transition:width .28s ease}
+nav a:hover,nav a.active{color:var(--ink)}
+nav a:hover::after,nav a.active::after{width:100%}
+.burger{display:none;background:none;border:none;cursor:pointer;width:42px;height:42px;flex-direction:column;justify-content:center;gap:5px}
+.burger span{height:2px;width:24px;background:var(--ink);transition:.3s;border-radius:2px}
+.burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.burger.open span:nth-child(2){opacity:0}
+.burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+@media(max-width:880px){
+  .burger{display:flex}
+  nav ul{position:fixed;inset:72px 0 auto 0;flex-direction:column;gap:0;background:var(--bg-2);border-bottom:1px solid var(--line);max-height:0;overflow:hidden;transition:max-height .4s ease}
+  nav ul.open{max-height:420px}
+  nav li{width:100%;border-top:1px solid var(--line-2)}
+  nav a{display:block;padding:1rem 4vw;font-size:1rem}
+}
+
+/* ===== HERO ===== */
+.hero{position:relative;padding:9.5rem 0 5rem;overflow:hidden}
+.hero-grid{position:absolute;inset:0;z-index:0;opacity:.5;background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);background-size:54px 54px;mask-image:radial-gradient(circle at 72% 28%,#000,transparent 72%)}
+.hero-inner{position:relative;z-index:2;max-width:880px}
+.pills{display:flex;gap:.5rem;flex-wrap:wrap;margin:1.4rem 0 1rem}
+.pill{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;border:1px solid var(--line);color:var(--gold);padding:.34rem .8rem;border-radius:40px}
+.hero h1{font-size:clamp(3rem,9vw,7rem);font-weight:600;margin:.4rem 0 1.2rem}
+.hero h1 .g{font-style:italic;background:linear-gradient(110deg,var(--gold-2),var(--gold) 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:clamp(1.05rem,2.2vw,1.3rem);max-width:600px;color:var(--ink-2);margin-bottom:2.2rem}
+.cta-row{display:flex;gap:1rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:.55rem;cursor:pointer;border:none;font-family:var(--sans);font-weight:700;font-size:.92rem;letter-spacing:.01em;padding:.95rem 1.8rem;border-radius:3px;transition:transform .2s ease,box-shadow .2s ease,background .2s}
+.btn-primary{background:linear-gradient(110deg,var(--gold-2),var(--gold));color:#0c0e15}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(201,162,75,.32)}
+.btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.hero-stats{display:flex;gap:3rem;margin-top:3.6rem;flex-wrap:wrap;position:relative;z-index:2}
+.stat .n{font-family:var(--serif);font-weight:700;font-size:2.8rem;line-height:1;color:var(--gold-2)}
+.stat .l{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3);margin-top:.3rem}
+
+/* ===== RESUMEN ===== */
+.resumen{padding:5rem 0;border-top:1px solid var(--line-2)}
+.resumen-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:3.5rem;align-items:start}
+.resumen h2{font-size:clamp(2.2rem,4.5vw,3.2rem)}
+.resumen .body{font-size:1.1rem;color:var(--ink-2)}
+.resumen .body p:first-of-type::first-letter{font-family:var(--serif);font-weight:700;float:left;font-size:4.6rem;line-height:.72;padding:.06em .12em 0 0;color:var(--gold)}
+.resumen .body p+p{margin-top:1rem}
+.feat-list{margin-top:1.7rem;display:grid;gap:.75rem}
+.feat-list li{list-style:none;display:flex;gap:.8rem;font-size:.98rem;color:var(--ink)}
+.feat-list .mk{color:var(--gold);font-weight:700;font-family:var(--mono);font-size:.85rem}
+@media(max-width:780px){.resumen-grid{grid-template-columns:1fr;gap:2rem}}
+
+.section{padding:5.5rem 0;border-top:1px solid var(--line-2)}
+.section-head{margin-bottom:2.8rem;max-width:700px}
+.section-head h2{font-size:clamp(2.4rem,5.5vw,3.8rem);margin:.5rem 0}
+.section-head p{color:var(--ink-2);font-size:1.08rem}
+
+/* ===== CLASIFICADOR ===== */
+.clf-layout{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+@media(max-width:900px){.clf-layout{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line-2);border-radius:6px;padding:1.9rem;position:relative}
+.panel::before{content:"";position:absolute;inset:0;border-radius:6px;padding:1px;background:linear-gradient(160deg,var(--line),transparent 40%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.panel h3{font-size:1.7rem}
+.panel .sub{font-size:.9rem;color:var(--ink-3);margin-bottom:1.4rem}
+.mode-tabs{display:flex;gap:.4rem;margin-bottom:1.4rem;background:var(--bg-2);padding:.35rem;border-radius:4px}
+.mode-tabs button{flex:1;border:none;background:transparent;cursor:pointer;padding:.7rem;border-radius:3px;font-family:var(--sans);font-weight:700;font-size:.85rem;color:var(--ink-2);transition:.2s}
+.mode-tabs button.active{background:linear-gradient(110deg,var(--gold-2),var(--gold));color:#0c0e15}
+.dropzone{border:2px dashed var(--line);border-radius:5px;padding:2.4rem 1.4rem;text-align:center;cursor:pointer;transition:.25s;background:var(--bg-2)}
+.dropzone:hover,.dropzone.drag{border-color:var(--gold);background:#1a1f2c}
+.dropzone .ico{font-size:2.4rem;margin-bottom:.6rem;opacity:.85}
+.dropzone p{font-size:.92rem;color:var(--ink-2)}
+.dropzone .small{font-size:.76rem;color:var(--ink-3);margin-top:.4rem;font-family:var(--mono)}
+.preview-box{margin-top:1.2rem;border-radius:5px;overflow:hidden;border:1px solid var(--line-2);background:#000;display:none}
+.preview-box img{width:100%;display:block;aspect-ratio:4/3;object-fit:cover}
+.cam-stage{position:relative;border-radius:5px;overflow:hidden;border:1px solid var(--line);background:#07080c;margin-top:1.2rem;display:none}
+#webcam-container canvas{width:100%!important;height:auto!important;display:block}
+.cam-controls{display:flex;gap:.7rem;margin-top:1rem;flex-wrap:wrap}
+.hint{margin-top:1.2rem;padding:.9rem 1rem;border-left:3px solid var(--gold);background:rgba(201,162,75,.08);font-size:.84rem;color:var(--ink-2);border-radius:0 4px 4px 0}
+.hint code{font-family:var(--mono);background:rgba(201,162,75,.16);padding:.1em .35em;border-radius:3px;font-size:.85em;color:var(--gold-2)}
+.results .empty{text-align:center;color:var(--ink-3);padding:3rem 1rem;border:1px dashed var(--line-2);border-radius:5px}
+.results .empty .ico{font-size:2.6rem;opacity:.5;margin-bottom:.6rem}
+.bars{display:grid;gap:.65rem;margin-top:.4rem}
+.bar-row{display:grid;grid-template-columns:120px 1fr 54px;gap:.7rem;align-items:center;font-size:.84rem}
+.bar-row .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.bar-track{height:9px;background:var(--bg-2);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));width:0;transition:width .6s cubic-bezier(.2,.8,.2,1);border-radius:6px}
+.bar-row.top .name{color:var(--ink)}
+.bar-row.top .bar-fill{background:linear-gradient(90deg,var(--gold),var(--gold-2))}
+.bar-row .pct{text-align:right;font-family:var(--mono);font-weight:700;color:var(--ink-2)}
+.philo-card{margin-top:1.7rem;border-top:1px solid var(--line);padding-top:1.5rem;display:none}
+.philo-card.show{display:block;animation:rise .5s ease}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.philo-top{display:flex;gap:1.1rem;align-items:center;margin-bottom:1rem}
+.avatar{width:76px;height:76px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--serif);font-weight:700;font-size:1.9rem;color:var(--gold-2);background:var(--bg-2);border:2px solid var(--gold);box-shadow:0 0 18px rgba(201,162,75,.25)}
+.philo-top h3{font-size:2rem;line-height:1}
+.philo-top .dates{font-family:var(--mono);font-size:.76rem;color:var(--ink-3)}
+.badges{display:flex;gap:.5rem;flex-wrap:wrap;margin:.9rem 0}
+.badge{font-size:.7rem;font-weight:700;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:.32rem .65rem;border-radius:3px}
+.badge.epoca{background:var(--gold);color:#0c0e15}
+.badge.corriente{background:transparent;border:1px solid var(--gold);color:var(--gold)}
+.philo-card h4{font-family:var(--sans);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3);margin:1.2rem 0 .5rem}
+.ideas{list-style:none;display:grid;gap:.5rem}
+.ideas li{display:flex;gap:.6rem;font-size:.93rem;color:var(--ink-2)}
+.ideas li::before{content:"§";color:var(--gold);font-weight:700;font-family:var(--serif)}
+.philo-card .contexto{font-size:.95rem;color:var(--ink-2);font-style:italic}
+
+/* ===== TIMELINE ===== */
+.timeline{position:relative;margin-top:1rem}
+.timeline::before{content:"";position:absolute;left:118px;top:0;bottom:0;width:1px;background:var(--line)}
+@media(max-width:680px){.timeline::before{left:14px}}
+.tl-item{position:relative;display:grid;grid-template-columns:104px 1fr;gap:2.2rem;padding:1rem 0;cursor:pointer}
+@media(max-width:680px){.tl-item{grid-template-columns:1fr;gap:.4rem;padding-left:42px}}
+.tl-year{font-family:var(--serif);font-weight:700;font-size:1.6rem;text-align:right;color:var(--gold-2)}
+@media(max-width:680px){.tl-year{text-align:left;font-size:1.3rem}}
+.tl-node{position:absolute;left:111px;top:1.5rem;width:15px;height:15px;border-radius:50%;background:var(--bg);border:3px solid var(--gold);z-index:2;transition:.25s}
+@media(max-width:680px){.tl-node{left:7px}}
+.tl-item:hover .tl-node,.tl-item.open .tl-node{background:var(--gold);box-shadow:0 0 14px var(--gold)}
+.tl-content{background:var(--card);border:1px solid var(--line-2);border-radius:5px;padding:1.1rem 1.3rem;transition:.25s}
+.tl-item:hover .tl-content{transform:translateX(5px);border-color:var(--line)}
+.tl-content .tag{font-family:var(--mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);font-weight:700}
+.tl-content h3{font-size:1.4rem;margin:.2rem 0}
+.tl-content .detail{max-height:0;overflow:hidden;transition:max-height .4s ease;color:var(--ink-2);font-size:.92rem}
+.tl-item.open .tl-content .detail{max-height:260px;margin-top:.6rem}
+.tl-content .toggle{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);margin-top:.5rem;display:inline-block}
+
+/* ===== VIDEO ===== */
+.video-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:2.5rem;align-items:start}
+@media(max-width:860px){.video-grid{grid-template-columns:1fr}}
+.video-frame{position:relative;border-radius:7px;overflow:hidden;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.5);aspect-ratio:16/9;background:#000}
+.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.video-ph{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:.85rem;padding:2rem}
+.video-meta{display:grid;gap:1.1rem}
+.meta-card{background:var(--card);border:1px solid var(--line-2);border-radius:5px;padding:1.2rem}
+.meta-card .k{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);font-weight:700}
+.meta-card .v{font-size:1rem;margin-top:.25rem;color:var(--ink)}
+.meta-card.desc .v{color:var(--ink-2);font-size:.94rem}
+
+/* ===== EQUIPO ===== */
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1.3rem}
+.member{background:var(--card);border:1px solid var(--line-2);border-radius:6px;padding:1.6rem;transition:.25s}
+.member:hover{transform:translateY(-6px);border-color:var(--gold)}
+.member .av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;margin-bottom:.9rem;font-family:var(--serif);font-weight:700;color:#0c0e15;font-size:1.35rem;background:var(--gold)}
+.member:nth-child(3n+1) .av{background:var(--teal);color:var(--ink)}
+.member:nth-child(3n+2) .av{background:var(--oxblood);color:var(--ink)}
+.member h3{font-size:1.4rem}
+.member .role{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:700;margin:.2rem 0 .6rem}
+.member p{font-size:.88rem;color:var(--ink-2)}
+
+/* ===== FOOTER ===== */
+footer{background:var(--bg-2);border-top:1px solid var(--line);padding:3.5rem 0 2rem}
+.footer-grid{display:flex;justify-content:space-between;gap:2rem;flex-wrap:wrap;align-items:flex-end}
+footer p{color:var(--ink-3);font-size:.9rem;max-width:380px;margin-top:.8rem}
+.gh-link{display:inline-flex;gap:.6rem;align-items:center;border:1.5px solid var(--line);padding:.85rem 1.5rem;border-radius:3px;font-weight:700;font-size:.9rem;transition:.2s;color:var(--gold)}
+.gh-link:hover{background:var(--gold);color:#0c0e15;border-color:var(--gold)}
+.footer-bottom{border-top:1px solid var(--line-2);margin-top:2.5rem;padding-top:1.5rem;font-family:var(--mono);font-size:.72rem;color:var(--ink-3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem}
+
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a href="#inicio" class="brand"><span class="dot"></span><span>NÓESIS<small>VISIÓN · FILOSOFÍA</small></span></a>
+    <nav><ul id="menu">
+      <li><a href="#inicio" class="active">Inicio</a></li>
+      <li><a href="#clasificador">Clasificador</a></li>
+      <li><a href="#contexto">Contexto histórico</a></li>
+      <li><a href="#video">Video</a></li>
+      <li><a href="#equipo">Equipo</a></li>
+    </ul></nav>
+    <button class="burger" id="burger" aria-label="Menú"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<section class="hero" id="inicio">
+  <div class="hero-grid"></div>
+  <div class="wrap hero-inner">
+    <span class="eyebrow">Inteligencia artificial · Visión computacional</span>
+    <div class="pills"><span class="pill">Filosofía</span><span class="pill">Historia</span><span class="pill">STEAM</span></div>
+    <h1>El rostro del <span class="g">pensamiento</span> contemporáneo.</h1>
+    <p class="lead">Una plataforma que reconoce a los grandes filósofos de la época contemporánea a partir de una imagen, y revela su época, sus ideas y el mundo que los moldeó.</p>
+    <div class="cta-row">
+      <a href="#clasificador" class="btn btn-primary">Probar el clasificador →</a>
+      <a href="#contexto" class="btn btn-ghost">Explorar la historia</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="n" id="stat-count">8</div><div class="l">Filósofos reconocibles</div></div>
+      <div class="stat"><div class="n">XX–XXI</div><div class="l">Siglos abarcados</div></div>
+      <div class="stat"><div class="n">IA</div><div class="l">Teachable Machine</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="resumen">
+  <div class="wrap resumen-grid reveal">
+    <div><span class="eyebrow">La plataforma</span><h2>Pensar con la mirada.</h2></div>
+    <div class="body">
+      <p>NÓESIS es un proyecto interdisciplinario que une Filosofía, Historia y STEAM con la inteligencia artificial. Entrenamos un modelo en Teachable Machine para identificar a los pensadores más influyentes de la época contemporánea: basta una fotografía o la cámara de tu dispositivo.</p>
+      <p>Al reconocer a un filósofo, la página despliega de forma dinámica su nombre, su corriente, sus ideas centrales y el contexto histórico que dio forma a su obra. Una invitación a entender no solo <em>quién</em> pensó, sino <em>por qué</em> y <em>cuándo</em>.</p>
+      <ul class="feat-list">
+        <li><span class="mk">01</span><span>Clasificación en tiempo real con cámara o imagen cargada.</span></li>
+        <li><span class="mk">02</span><span>Línea de tiempo interactiva que conecta eventos y corrientes.</span></li>
+        <li><span class="mk">03</span><span>Contenido educativo y video del proyecto.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="clasificador">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Sección 02 · Inteligencia artificial</span>
+      <h2>Clasificación de filósofos</h2>
+      <p>Carga una imagen o activa tu cámara. El modelo identificará al filósofo y mostrará toda su información.</p>
+    </div>
+    <div class="clf-layout">
+      <div class="panel reveal">
+        <h3>Entrada</h3>
+        <p class="sub">Elige cómo quieres analizar la imagen.</p>
+        <div class="mode-tabs">
+          <button id="tab-upload" class="active" onclick="setMode('upload')">📁 Subir imagen</button>
+          <button id="tab-cam" onclick="setMode('cam')">📷 Usar cámara</button>
+        </div>
+        <div id="mode-upload">
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('file').click()">
+            <div class="ico">🖼️</div>
+            <p><strong>Haz clic para subir</strong> o arrastra una imagen aquí</p>
+            <p class="small">JPG · PNG · WEBP</p>
+          </div>
+          <input type="file" id="file" accept="image/*" hidden onchange="handleFile(event)">
+          <div class="preview-box" id="preview-box"><img id="preview-img" alt="Imagen a clasificar"></div>
+        </div>
+        <div id="mode-cam" style="display:none">
+          <div class="cam-stage" id="cam-stage"><div id="webcam-container"></div></div>
+          <div class="cam-controls">
+            <button class="btn btn-primary" id="cam-start" onclick="startCam()">▶ Iniciar cámara</button>
+            <button class="btn btn-ghost" id="cam-stop" onclick="stopCam()" style="display:none">■ Detener</button>
+          </div>
+          <div class="dropzone" id="cam-placeholder" style="cursor:default">
+            <div class="ico">📷</div><p>Activa la cámara para clasificar en tiempo real.</p>
+            <p class="small">Se pedirá permiso de cámara</p>
+          </div>
+        </div>
+        <div class="hint">
+          <strong>⚙️ Una sola cosa por hacer:</strong> en el código, pega tu modelo en la variable
+          <code>MODEL_URL</code> (botón <em>Export Model → Tensorflow.js → Upload my model</em>). Nada más.
+        </div>
+      </div>
+      <div class="panel results reveal">
+        <h3>Resultado</h3>
+        <p class="sub">Predicción del modelo y ficha del filósofo.</p>
+        <div id="loading" style="display:none;text-align:center;padding:2rem;color:var(--ink-3)"><div style="font-size:2rem">⏳</div><p>Cargando modelo de IA…</p></div>
+        <div id="empty-state" class="empty"><div class="ico">🔍</div><p>Aún no hay análisis.<br>Sube una imagen o usa la cámara para comenzar.</p></div>
+        <div id="prediction-zone" style="display:none">
+          <h4 style="margin-top:0;font-family:var(--sans);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3)">Niveles de confianza</h4>
+          <div class="bars" id="bars"></div>
+          <div class="philo-card" id="philo-card">
+            <div class="philo-top"><div class="avatar" id="p-avatar">?</div><div><h3 id="p-name">—</h3><div class="dates" id="p-dates"></div></div></div>
+            <div class="badges"><span class="badge epoca" id="p-epoca"></span><span class="badge corriente" id="p-corriente"></span></div>
+            <h4>Ideas principales</h4><ul class="ideas" id="p-ideas"></ul>
+            <h4>Contexto histórico</h4><p class="contexto" id="p-contexto"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="contexto">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Sección 03 · Línea de tiempo</span>
+      <h2>Contexto histórico</h2>
+      <p>Los eventos que sacudieron al mundo moderno y las corrientes filosóficas que nacieron como respuesta. Haz clic en cada hito.</p>
+    </div>
+    <div class="timeline reveal" id="timeline"></div>
+  </div>
+</section>
+
+<section class="section" id="video">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Sección 04 · Recurso audiovisual</span>
+      <h2>Video educativo</h2>
+      <p>Una mirada en movimiento al tema del proyecto.</p>
+    </div>
+    <div class="video-grid">
+      <div class="video-frame reveal" id="video-frame"></div>
+      <div class="video-meta reveal">
+        <div class="meta-card desc"><div class="k">Descripción</div><div class="v">Recorrido por las principales corrientes filosóficas contemporáneas y la forma en que la inteligencia artificial puede acercarnos a su estudio. Proyecto de Filosofía, Historia y STEAM.</div></div>
+        <div class="meta-card"><div class="k">Duración</div><div class="v" id="video-dur">—</div></div>
+        <div class="meta-card"><div class="k">Participantes</div><div class="v">Equipo NÓESIS · 7 integrantes</div></div>
+        <div class="meta-card"><div class="k">Materias</div><div class="v">Filosofía · Historia · STEAM</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="equipo">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Sección 05 · Acerca de</span>
+      <h2>El equipo</h2>
+      <p>Roles y contribuciones individuales detrás de la plataforma.</p>
+    </div>
+    <div class="team-grid reveal" id="team"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <div class="brand"><span class="dot"></span><span style="font-family:var(--serif);font-weight:700;font-size:1.7rem;letter-spacing:.04em">NÓESIS</span></div>
+        <p>Proyecto académico interdisciplinario: visión computacional aplicada al estudio de la filosofía contemporánea.</p>
+      </div>
+      <a class="gh-link" id="gh-link" href="#" target="_blank" rel="noopener">⌥ Ver en GitHub</a>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 · NÓESIS — Filosofía contemporánea</span>
+      <span>HTML · CSS · JS · Teachable Machine</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* =====================================================================
+   👉  LO ÚNICO QUE TIENES QUE CAMBIAR ESTÁ AQUÍ ARRIBA.
+   =====================================================================*/
+
+// 1) OBLIGATORIO: pega el link de TU modelo de Teachable Machine (termina en "/").
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/g_bA_I4Id/";
+
+// 2) OPCIONAL: tu video y tu repo (si los dejas así, se ven con un texto de aviso).
+const VIDEO_ID    = "Y8GFbsQl-KI";   // ej: "aB3xK9zQ1mE"  (lo que va después de v= en YouTube)
+const VIDEO_DUR   = "—";          // ej: "4:32 min"
+const GITHUB_URL  = "https://github.com/USUARIO/REPOSITORIO";
+
+/* =====================================================================
+   De aquí para abajo ya está todo hecho. No necesitas tocarlo.
+   (Solo si los nombres de las clases de tu modelo NO coinciden,
+    edita "aliases" de cada filósofo.)
+   =====================================================================*/
+
+const FILOSOFOS = [
+  {aliases:["jürgen habermas","jurgen habermas","habermas"],nombre:"Jürgen Habermas",dates:"1929 – presente",iniciales:"JH",epoca:"Contemporánea · s. XX–XXI",corriente:"Teoría crítica · Escuela de Frankfurt",
+   ideas:["La acción comunicativa: la razón orientada al entendimiento entre personas.","La ética del discurso y la «situación ideal de habla».","La esfera pública y la democracia deliberativa.","La modernidad entendida como un «proyecto inacabado»."],
+   contexto:"Alemania de la posguerra, reconstruyendo la democracia tras el nazismo. Heredero crítico de la Escuela de Frankfurt, busca refundar la razón y el diálogo frente a la barbarie del siglo XX."},
+  {aliases:["judith butler","butler"],nombre:"Judith Butler",dates:"1956 – presente",iniciales:"JB",epoca:"Contemporánea · s. XX–XXI",corriente:"Teoría de género · Filosofía feminista",
+   ideas:["El género como performatividad: algo que se «hace», no que se «es».","La crítica a la idea de una identidad fija y natural.","El cuestionamiento de la heteronormatividad («El género en disputa», 1990).","Las «vidas precarias»: qué vidas son reconocidas y lloradas."],
+   contexto:"Estados Unidos de fines del siglo XX, con el auge de los movimientos feministas, LGBT+ y los estudios de género. Su obra transforma por completo el feminismo y la teoría queer contemporáneos."},
+  {aliases:["slavoj žižek","slavoj zizek","zizek","žižek"],nombre:"Slavoj Žižek",dates:"1949 – presente",iniciales:"SŽ",epoca:"Contemporánea · s. XX–XXI",corriente:"Marxismo · Psicoanálisis lacaniano",
+   ideas:["La crítica de la ideología a través del psicoanálisis de Lacan.","La ideología actúa incluso cuando creemos no creer en ella.","La cultura popular (cine, política) como síntoma de la sociedad.","Una relectura de Hegel y Marx para el capitalismo tardío."],
+   contexto:"Esloveno formado en la antigua Yugoslavia. Piensa el mundo posterior a la caída del Muro de Berlín (1989) y la hegemonía del capitalismo global, mezclando filosofía con cultura pop."},
+  {aliases:["byung-chul han","byung chul han","han"],nombre:"Byung-Chul Han",dates:"1959 – presente",iniciales:"BH",epoca:"Contemporánea · s. XXI",corriente:"Filosofía contemporánea · Crítica cultural",
+   ideas:["La «sociedad del cansancio»: del sujeto de obediencia al sujeto del rendimiento.","La autoexplotación: nos exigimos a nosotros mismos creyéndonos libres.","La «sociedad de la transparencia» y el exceso de positividad.","Crítica de la hiperconectividad y el neoliberalismo digital."],
+   contexto:"Filósofo germano-coreano que piensa el siglo XXI hiperconectado: redes sociales, burnout, productividad y el modo en que el capitalismo digital moldea nuestra vida íntima."}
+];
+
+const TIMELINE = [
+  {year:"1947",tag:"Teoría crítica",title:"«Dialéctica de la Ilustración»",detail:"Adorno y Horkheimer, de la Escuela de Frankfurt, critican cómo la razón moderna pudo derivar en barbarie. De esa tradición surgirá el pensamiento de Habermas."},
+  {year:"1962",tag:"Esfera pública",title:"Habermas y la opinión pública",detail:"Habermas publica «Historia y crítica de la opinión pública» y teoriza el espacio público como lugar del debate racional y la democracia."},
+  {year:"1968",tag:"Historia",title:"Mayo del 68 y las protestas globales",detail:"Una ola de revueltas estudiantiles sacude Occidente. La filosofía se vuelca a pensar el poder, la cultura y la emancipación."},
+  {year:"1981",tag:"Acción comunicativa",title:"«Teoría de la acción comunicativa»",detail:"Habermas propone fundar la convivencia en el entendimiento dialógico, frente a la pura racionalidad instrumental del capitalismo."},
+  {year:"1989",tag:"Historia",title:"Caída del Muro de Berlín",detail:"El fin de la Guerra Fría parece consagrar al capitalismo global. Es el escenario que Žižek analizará críticamente toda su obra."},
+  {year:"1989",tag:"Ideología",title:"«El sublime objeto de la ideología»",detail:"Žižek une marxismo y psicoanálisis lacaniano para mostrar cómo la ideología nos atrapa incluso cuando creemos ser libres de ella."},
+  {year:"1990",tag:"Teoría de género",title:"«El género en disputa» de Butler",detail:"Judith Butler introduce la performatividad del género y revoluciona el feminismo y la teoría queer: el género se hace, no se nace con él."},
+  {year:"2000s",tag:"Era digital",title:"Internet, redes y smartphones",detail:"La hiperconexión transforma el trabajo, la intimidad y la identidad. Nace el terreno que Byung-Chul Han diagnosticará como agotador."},
+  {year:"2010",tag:"Crítica cultural",title:"«La sociedad del cansancio»",detail:"Byung-Chul Han describe al sujeto del rendimiento que se autoexplota: ya no nos domina un amo externo, nos exigimos a nosotros mismos hasta el burnout."},
+  {year:"Hoy",tag:"Filosofía viva",title:"Pensar el presente",detail:"Habermas, Butler, Žižek y Han siguen activos: la filosofía contemporánea discute en tiempo real la democracia, el género, la ideología y la vida digital."}
+];
+
+const EQUIPO = [
+  {nombre:"Amanda Pineda",iniciales:"AP",role:"Líder de proyecto",aporte:"Coordinación general, planeación del prototipo y supervisión de entregables."},
+  {nombre:"Kelly Navarrete",iniciales:"KN",role:"Entrenamiento del modelo IA",aporte:"Recolección de imágenes y entrenamiento del modelo en Teachable Machine."},
+  {nombre:"Antonio Díaz",iniciales:"AD",role:"Desarrollo web",aporte:"Programación e integración del modelo con HTML, CSS y JavaScript."},
+  {nombre:"Santiago Evodio",iniciales:"SE",role:"Diseño UI / UX",aporte:"Definición de paleta, tipografía y diseño visual del sitio."},
+  {nombre:"Regina Navarrete",iniciales:"RN",role:"Investigación · Filosofía e Historia",aporte:"Redacción de filósofos, corrientes y contexto histórico."},
+  {nombre:"Roberto Espinoza",iniciales:"RE",role:"Producción audiovisual",aporte:"Guion, grabación y edición del video educativo."},
+  {nombre:"Santiago Mokarzel",iniciales:"SM",role:"Documentación · STEAM",aporte:"Integración interdisciplinaria y documentación técnica del proyecto."}
+];
+
+/* ---------- Clasificador ---------- */
+let model=null,maxPredictions=0,webcam=null,camLoop=null,currentMode="upload";
+function normalize(s){return (s||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();}
+function matchFilosofo(label){const n=normalize(label);return FILOSOFOS.find(f=>f.aliases.some(a=>normalize(a)===n))||FILOSOFOS.find(f=>f.aliases.some(a=>n.includes(normalize(a))||normalize(a).includes(n)));}
+async function loadModel(){
+  if(model) return model;
+  if(MODEL_URL.includes("TU_MODELO_AQUI")) throw new Error("MODEL_URL no configurada");
+  document.getElementById("loading").style.display="block";
+  document.getElementById("empty-state").style.display="none";
+  try{model=await tmImage.load(MODEL_URL+"model.json",MODEL_URL+"metadata.json");maxPredictions=model.getTotalClasses();}
+  finally{document.getElementById("loading").style.display="none";}
+  return model;
+}
+function setMode(m){currentMode=m;document.getElementById("tab-upload").classList.toggle("active",m==="upload");document.getElementById("tab-cam").classList.toggle("active",m==="cam");document.getElementById("mode-upload").style.display=m==="upload"?"block":"none";document.getElementById("mode-cam").style.display=m==="cam"?"block":"none";if(m!=="cam")stopCam();}
+function showError(msg){document.getElementById("empty-state").style.display="block";document.getElementById("prediction-zone").style.display="none";document.getElementById("empty-state").innerHTML='<div class="ico">⚠️</div><p>'+msg+'</p>';}
+function handleFile(e){const file=e.target.files[0];if(!file)return;const img=document.getElementById("preview-img");img.src=URL.createObjectURL(file);document.getElementById("preview-box").style.display="block";img.onload=async()=>{try{await loadModel();const p=await model.predict(img);renderPrediction(p);}catch(err){console.error(err);showError("Aún falta configurar tu modelo: pega tu link en <code>MODEL_URL</code> dentro del código.");}};}
+const dz=document.getElementById("dropzone");
+["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+dz.addEventListener("drop",e=>{const f=e.dataTransfer.files;if(f.length){document.getElementById("file").files=f;handleFile({target:{files:f}});}});
+async function startCam(){try{await loadModel();webcam=new tmImage.Webcam(360,270,true);await webcam.setup();await webcam.play();const c=document.getElementById("webcam-container");c.innerHTML="";c.appendChild(webcam.canvas);document.getElementById("cam-stage").style.display="block";document.getElementById("cam-placeholder").style.display="none";document.getElementById("cam-start").style.display="none";document.getElementById("cam-stop").style.display="inline-flex";loopCam();}catch(err){console.error(err);showError("No se pudo iniciar la cámara o el modelo. Revisa permisos y la variable <code>MODEL_URL</code>.");}}
+async function loopCam(){if(!webcam)return;webcam.update();const p=await model.predict(webcam.canvas);renderPrediction(p);camLoop=requestAnimationFrame(loopCam);}
+function stopCam(){if(camLoop)cancelAnimationFrame(camLoop),camLoop=null;if(webcam){webcam.stop();webcam=null;}document.getElementById("cam-stage").style.display="none";document.getElementById("cam-placeholder").style.display="block";document.getElementById("cam-start").style.display="inline-flex";document.getElementById("cam-stop").style.display="none";}
+function renderPrediction(predictions){
+  predictions.sort((a,b)=>b.probability-a.probability);
+  document.getElementById("empty-state").style.display="none";
+  document.getElementById("prediction-zone").style.display="block";
+  const bars=document.getElementById("bars");bars.innerHTML="";
+  predictions.forEach((p,i)=>{const pct=(p.probability*100).toFixed(1);const row=document.createElement("div");row.className="bar-row"+(i===0?" top":"");row.innerHTML='<span class="name">'+p.className+'</span><div class="bar-track"><div class="bar-fill"></div></div><span class="pct">'+pct+'%</span>';bars.appendChild(row);requestAnimationFrame(()=>{row.querySelector(".bar-fill").style.width=pct+"%";});});
+  const top=predictions[0];const f=matchFilosofo(top.className);const card=document.getElementById("philo-card");
+  if(f&&top.probability>0.3){
+    document.getElementById("p-avatar").textContent=f.iniciales;
+    document.getElementById("p-name").textContent=f.nombre;
+    document.getElementById("p-dates").textContent=f.dates;
+    document.getElementById("p-epoca").textContent=f.epoca;
+    document.getElementById("p-corriente").textContent=f.corriente;
+    const ul=document.getElementById("p-ideas");ul.innerHTML="";f.ideas.forEach(i=>{const li=document.createElement("li");li.textContent=i;ul.appendChild(li);});
+    document.getElementById("p-contexto").textContent=f.contexto;
+    card.classList.add("show");
+  }else card.classList.remove("show");
+}
+
+/* ---------- Contenido estático ---------- */
+document.getElementById("stat-count").textContent=FILOSOFOS.length;
+const tl=document.getElementById("timeline");
+TIMELINE.forEach(item=>{const el=document.createElement("div");el.className="tl-item";el.innerHTML='<div class="tl-year">'+item.year+'</div><div class="tl-node"></div><div class="tl-content"><span class="tag">'+item.tag+'</span><h3>'+item.title+'</h3><div class="detail">'+item.detail+'</div><span class="toggle">＋ ver detalle</span></div>';el.addEventListener("click",()=>{el.classList.toggle("open");el.querySelector(".toggle").textContent=el.classList.contains("open")?"− ocultar":"＋ ver detalle";});tl.appendChild(el);});
+const team=document.getElementById("team");
+EQUIPO.forEach(m=>{const el=document.createElement("div");el.className="member";el.innerHTML='<div class="av">'+m.iniciales+'</div><h3>'+m.nombre+'</h3><div class="role">'+m.role+'</div><p>'+m.aporte+'</p>';team.appendChild(el);});
+
+/* ---------- Video y GitHub (desde el CONFIG de arriba) ---------- */
+(function(){
+  const vf=document.getElementById("video-frame");
+  if(VIDEO_ID && VIDEO_ID!=="VIDEO_ID"){
+    vf.innerHTML='<iframe src="https://www.youtube.com/embed/'+VIDEO_ID+'" title="Video educativo" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>';
+  }else{
+    vf.innerHTML='<div class="video-ph">🎬 Pega el ID de tu video de YouTube en la variable VIDEO_ID (arriba en el código) para mostrarlo aquí.</div>';
+  }
+  document.getElementById("video-dur").textContent=VIDEO_DUR;
+  const gh=document.getElementById("gh-link");
+  gh.href=GITHUB_URL;
+})();
+
+/* ---------- Nav / scroll / reveal ---------- */
+const burger=document.getElementById("burger"),menu=document.getElementById("menu");
+burger.addEventListener("click",()=>{burger.classList.toggle("open");menu.classList.toggle("open");});
+menu.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{burger.classList.remove("open");menu.classList.remove("open");}));
+const sections=[...document.querySelectorAll("section[id]")],links=[...menu.querySelectorAll("a")];
+const navObs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)links.forEach(l=>l.classList.toggle("active",l.getAttribute("href")==="#"+e.target.id));});},{rootMargin:"-45% 0px -50% 0px"});
+sections.forEach(s=>navObs.observe(s));
+const revObs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");revObs.unobserve(e.target);}});},{threshold:.15});
+document.querySelectorAll(".reveal").forEach(el=>revObs.observe(el));
+let lastY=0;const nav=document.querySelector("header.nav");
+window.addEventListener("scroll",()=>{const y=window.scrollY;nav.style.transform=(y>lastY&&y>300)?"translateY(-100%)":"translateY(0)";lastY=y;});
+</script>
+</body>
+</html>
